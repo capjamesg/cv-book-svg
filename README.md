@@ -42,7 +42,7 @@ pip3 install -r requirements.txt
 Then, run the main script:
 
 ```
-python3 app.py --input=image.jpg --output=annotation.html
+python3 grounded.py --input=image.jpg --output=annotation.html
 ```
 
 This script takes an image as input (PNG, JPEG) and outputs a HTML document.
