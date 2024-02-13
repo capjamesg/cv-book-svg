@@ -6,7 +6,7 @@ Use computer vision to generate an SVG that you can overlay onto a photo of your
 
 [Try the demo](https://capjamesg.github.io/cv-book-svg/annotations.html)
 
-[add video]
+https://github.com/capjamesg/cv-book-svg/assets/37276661/ec57bf18-4182-4dce-870f-6bef81809e80
 
 ## How it Works
 
