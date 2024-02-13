@@ -21,7 +21,7 @@ This script uses the following vision tools:
 - GPT-4 with Vision API
 - OpenCV Python
 
-It takes around 20 seconds to generate the polygons that map to the location of each book. It then takes a few seconds to process each book with the OpenAI GPT-4 with Vision API.
+It takes around 20 seconds to generate the polygons that map to the location of each book on an M1 Macbook Air. It then takes a few seconds to process each book with the OpenAI GPT-4 with Vision API.
 
 For a bookshelf with 11 books, the script takes around one minute to run.
 
