@@ -47,6 +47,14 @@ python3 grounded.py --input=image.jpg --output=annotation.html
 
 This script takes an image as input (PNG, JPEG) and outputs a HTML document.
 
+## Limitations
+
+This system may:
+
+- Not identify all books on a bookshelf (thin books are more likely to not be identified).
+- Generate a link to the wrong Google Books URL (which will happen if a book is not available on Google Books, or if a book has a generic title like "Poems of Emily Dickinson", which could on its own refer to several publications).
+- Mis-identify some books.
+
 ## License
 
 This project is licensed under an [MIT license](LICENSE).
