@@ -1,5 +1,6 @@
 import base64
 import json
+import optparse
 
 import cv2
 import numpy as np
@@ -10,22 +11,25 @@ from autodistill.detection import CaptionOntology
 from autodistill_grounded_sam import GroundedSAM
 from openai import OpenAI
 
+parser = optparse.OptionParser()
+
+parser.add_option("-i", "--image", dest="image", help="Image to process")
+parser.add_option("-o", "--output", dest="output", help="Output file")
+
+args = parser.parse_args()
+
+image = cv2.imread(args.image)
+
 base_model = GroundedSAM(ontology=CaptionOntology({"book spine": "book spine"}))
 
-results = base_model.predict("IMG_1769 Large Medium.jpeg")
-
-# a result is a supervision.Detections object with
-# xyxy: a list of bounding boxes in the format [x1, y1, x2, y2]
-# confidence: a list of confidence scores for each bounding box
-# class_id: a list of class ids for each bounding box
-# mask: a list of masks for each bounding box
+results = base_model.predict(image)
 
 client = OpenAI()
 
 masks_isolated = []
 
 masks_to_xyxys = sv.mask_to_xyxy(masks=results.mask)
-image = cv2.imread("IMG_1769 Large Medium.jpeg")
+image = cv2.imread(image)
 
 polygons = [sv.mask_to_polygons(mask) for mask in results.mask]
 
@@ -38,14 +42,11 @@ books = []
 links = []
 
 for region in tqdm.tqdm(masks_isolated):
-    cropped = region
-    # rotate the image left 90 degrees
-    cropped = cv2.rotate(cropped, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    region = cv2.rotate(region, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-    # save as jpeg
-    cv2.imwrite("cropped.jpeg", cropped)
+    cv2.imwrite("region.jpeg", region)
 
-    with open("cropped.jpeg", "rb") as image_file:
+    with open("region.jpeg", "rb") as image_file:
         base64_image = base64.b64encode(image_file.read()).decode("utf-8")
 
     response = client.chat.completions.create(
@@ -93,22 +94,11 @@ for book in books:
             authors.append(response["items"][0]["volumeInfo"]["authors"][0])
         else:
             authors.append("NULL")
-        # infoLink
         links.append(response["items"][0]["volumeInfo"]["infoLink"])
     except:
         isbns.append("NULL")
         authors.append("NULL")
         links.append("NULL")
-
-# bounding_box_annotator = sv.MaskAnnotator()
-# label_annotator = sv.LabelAnnotator()
-
-# annotated_image = bounding_box_annotator.annotate(
-#     scene=cv2.imread("IMG_1769 Large Medium.jpeg"), detections=results
-# )
-# annotated_image = label_annotator.annotate(
-#     scene=annotated_image, detections=results, labels=isbns
-# )
 
 with open("annotations.json", "w") as f:
     json.dump(
@@ -131,14 +121,14 @@ with open("annotations.json", "w") as f:
 with open("annotations.json", "r") as f:
     annotations = json.load(f)
 
-annotated_image = cv2.imread("IMG_1769 Large Medium.jpeg")
+annotated_image = cv2.imread(args.image)
 
 width, height = annotated_image.shape[1], annotated_image.shape[0]
 
 
-with open("annotations.html", "w") as f:
+with open(args.output, "w") as f:
     f.write(
-        f"""<div class="image-container"><img src="./IMG_1769 Large Medium.jpeg" alt="Descriptive Alt Text" height="{height}" width="{width}">
+        f"""<div class="image-container"><img src="{args.image}" height="{height}" width="{width}">
         
 <svg width="{width}" height="{height}">"""
     )
