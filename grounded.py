@@ -16,7 +16,7 @@ parser = optparse.OptionParser()
 parser.add_option("-i", "--image", dest="image", help="Image to process")
 parser.add_option("-o", "--output", dest="output", help="Output file")
 
-args = parser.parse_args()
+args, args2 = parser.parse_args()
 
 image = cv2.imread(args.image)
 

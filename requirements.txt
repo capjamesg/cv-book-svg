@@ -6,3 +6,4 @@ tqdm
 autodistill
 autodistill_grounded_sam
 openai
+roboflow
