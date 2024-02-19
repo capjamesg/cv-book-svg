@@ -29,7 +29,6 @@ client = OpenAI()
 masks_isolated = []
 
 masks_to_xyxys = sv.mask_to_xyxy(masks=results.mask)
-image = cv2.imread(image)
 
 polygons = [sv.mask_to_polygons(mask) for mask in results.mask]
 
