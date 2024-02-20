@@ -6,10 +6,11 @@ import cv2
 import numpy as np
 import requests
 import supervision as sv
-import tqdm
 from autodistill.detection import CaptionOntology
 from autodistill_grounded_sam import GroundedSAM
 from openai import OpenAI
+from io import BytesIO
+import concurrent.futures
 
 parser = optparse.OptionParser()
 
@@ -20,7 +21,7 @@ args, args2 = parser.parse_args()
 
 image = cv2.imread(args.image)
 
-base_model = GroundedSAM(ontology=CaptionOntology({"book spine": "book spine"}))
+base_model = GroundedSAM(ontology=CaptionOntology({"book spine": "book spine"}), box_threshold=0.1)
 
 results = base_model.predict(image)
 
@@ -40,13 +41,10 @@ for mask in results.mask:
 books = []
 links = []
 
-for region in tqdm.tqdm(masks_isolated):
+def process_mask(region, task_id):
     region = cv2.rotate(region, cv2.ROTATE_90_COUNTERCLOCKWISE)
 
-    cv2.imwrite("region.jpeg", region)
-
-    with open("region.jpeg", "rb") as image_file:
-        base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+    base64_image = base64.b64encode(BytesIO(cv2.imencode(".jpg", region)[1]).read()).decode("utf-8")
 
     response = client.chat.completions.create(
         model="gpt-4-vision-preview",
@@ -68,36 +66,47 @@ for region in tqdm.tqdm(masks_isolated):
         max_tokens=300,
     )
 
-    books.append(
-        response.choices[0].message.content.rstrip("Title:").replace("\n", " ")
-    )
+    return response.choices[0].message.content.rstrip("Title:").replace("\n", " ")
+
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    tasks = [executor.submit(process_mask, region, task_id) for task_id, region in enumerate(masks_isolated)]
+    books = [task.result() for task in tasks]
+
+links = []
 
 isbns = []
 authors = []
 
-for book in books:
+def process_book_with_google_books(book):
     response = requests.get(
         f"https://www.googleapis.com/books/v1/volumes?q={book}",
         headers={"User-Agent": "Mozilla/5.0"},
     )
     response = response.json()
 
+    isbn, author, link = "NULL", "NULL", "NULL"
+
     try:
-        isbns.append(
-            response["items"][0]["volumeInfo"]["industryIdentifiers"][0]["identifier"]
-        )
+        isbn = response["items"][0]["volumeInfo"]["industryIdentifiers"][0]["identifier"]
         if (
             "volumeInfo" in response["items"][0]
             and "authors" in response["items"][0]["volumeInfo"]
         ):
-            authors.append(response["items"][0]["volumeInfo"]["authors"][0])
-        else:
-            authors.append("NULL")
-        links.append(response["items"][0]["volumeInfo"]["infoLink"])
+            author = response["items"][0]["volumeInfo"]["authors"][0]
+        link = response["items"][0]["volumeInfo"]["infoLink"]
     except:
-        isbns.append("NULL")
-        authors.append("NULL")
-        links.append("NULL")
+        pass
+
+    return isbn, author, link
+
+with concurrent.futures.ThreadPoolExecutor() as executor:
+    tasks = [executor.submit(process_book_with_google_books, book) for book in books]
+
+    for task in tasks:
+        isbn, author, link = task.result()
+        isbns.append(isbn)
+        authors.append(author)
+        links.append(link)
 
 with open("annotations.json", "w") as f:
     json.dump(
@@ -112,7 +121,7 @@ with open("annotations.json", "w") as f:
             }
             for title, author, isbn, polygon_list, xyxy, link in zip(
                 books, authors, isbns, polygons, results.xyxy, links
-            )
+            ) if "sorry" not in title.lower() and "NULL" not in title
         ],
         f,
     )
@@ -120,9 +129,7 @@ with open("annotations.json", "w") as f:
 with open("annotations.json", "r") as f:
     annotations = json.load(f)
 
-annotated_image = cv2.imread(args.image)
-
-width, height = annotated_image.shape[1], annotated_image.shape[0]
+width, height = image.shape[1], image.shape[0]
 
 
 with open(args.output, "w") as f:
@@ -133,7 +140,6 @@ with open(args.output, "w") as f:
     )
     for annotation in annotations:
         polygons = annotation["polygons"][0]
-        print(polygons)
         f.write(
             f"""<polygon points="{', '.join([f'{x},{y}' for x, y in polygons])}" fill="transparent" stroke="red" stroke-width="2"
         onclick="window.location.href='{annotation['link']}';"></polygon>"""
