@@ -55,6 +55,10 @@ This system may:
 - Generate a link to the wrong Google Books URL (which will happen if a book is not available on Google Books, or if a book has a generic title like "Poems of Emily Dickinson", which could on its own refer to several publications).
 - Mis-identify some books.
 
+## Notes
+
+- `video.py` contains a work-in-progress system for identifying all unique books in a video.
+
 ## License
 
 This project is licensed under an [MIT license](LICENSE).
